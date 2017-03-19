@@ -4,19 +4,26 @@ require 'crack'
 require 'open_uri_redirections'
 class BikeStationController < ApplicationController
 	def index
-		#get the ubike data
-		@data = get_data()
+		@result = Hash.new
+		@result_arr = []
 		#get the location data
 		@geodata = get_geo_info
-		puts @geodata
-		if @geodata.class != "Hash"
-			result = pack(@geodata, [])
+		#puts @geodata
+		if @geodata.class != @result.class
+			@result = pack(@geodata, @result_arr)
 		end
-	
+		#get the ubike data
+		@data = get_data()
 		c = bike_check(@data)
+		if c != 0 && @geodata.class == @result.class
+			@result = pack(c, @result_arr)
+		elsif c == 0 && @geodata.class == @result.class
+			@result_arr =  get_near_station(@data)
+			@result = pack(c, @result_arr)
+		end
 
 		#the way of show
-		render json: result#{:info => @data["retVal"], :geo => @geodata}
+		render json: @result#{:info => @data["retVal"], :geo => @geodata}
 
 		#here is test
 		puts params["lat"]
@@ -98,6 +105,31 @@ private
 		h = {"code"=> code, "result"=>data}
 	end
 
+	def get_near_station(station)
+		dis_uri = "https://maps.googleapis.com/maps/api/distancematrix/json?"
+		dis_origin = "origins=#{params["lat"]},#{params["lng"]}"
+		api_key = "key=AIzaSyBaWsuNSpmcPIOzlfC9oR_R6HXvQ4qFyDo"
+		dis_set = "mode=walking&units=metric"
+		valid_station_arr = []
+		station_arr = []
+		station['retVal'].values.each do |bike_stat|
+			lat_dif = bike_stat["lat"].to_f - params["lat"].to_f
+			lng_dif = bike_stat["lng"].to_f - params["lng"].to_f
+				if bike_stat["bemp"].to_i != 0 &&  lat_dif.abs < 0.01 && lng_dif.abs < 0.01
+					dis_path = dis_uri + dis_origin + "&destinations=" + bike_stat["lat"] + "," + bike_stat["lng"] + "&" + dis_set + "&" + api_key
+					distance_data = Crack::JSON.parse(HTTParty::get(dis_path).body)
+					puts dis_path
+					puts distance_data
+					distance = distance_data["rows"][0]["elements"][0]["distance"]["value"] 
+					valid_station_arr << {"sno" => bike_stat["sno"],"station" => bike_stat["sna"], "num_ubike" => bike_stat["sbi"], "dis" => distance}
+			end
+		end
+		valid_station_arr = valid_station_arr.sort_by!{|h| h["dis"]}
+		puts valid_station_arr
+		h1 = {"station" => valid_station_arr[0]["station"], "num_bike" => valid_station_arr[0]["num_ubike"]}
+		h2 = {"station" => valid_station_arr[1]["station"], "num_bike" => valid_station_arr[1]["num_ubike"]}
+		return [h1, h2]
+	end
 	def error_handler
 	end
 end
