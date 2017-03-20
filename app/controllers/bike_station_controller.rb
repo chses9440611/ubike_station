@@ -112,7 +112,7 @@ private
 					dis_path = dis_uri + dis_origin + "&destinations=" + bike_stat["lat"] + "," + bike_stat["lng"] + "&" + dis_set + "&" + api_key
 					
 					begin
-					get_distance = HTTParty::get(dis_path)i						#for each selected station get its path distance-data from location
+					get_distance = HTTParty::get(dis_path)						#for each selected station get its path distance-data from location
 					rescue HTTParty::Error => e									#handlde system error
 						return -3
 					rescue StandardError => e
