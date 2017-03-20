@@ -1,6 +1,5 @@
 require 'json'
 require 'httparty'
-require 'crack'
 require 'open_uri_redirections'
 class BikeStationController < ApplicationController
 	def index
